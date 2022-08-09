@@ -1,0 +1,17 @@
+[package]
+name = "ruuviscanner"
+version = "0.1.0"
+authors = ["Paippi <samuli.piippo@outlook.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dbus = "0.9.5"
+ruuvi-sensor-protocol = "0.5.0"
+# serde = { version = "1.0.142", features = ["derive"] }
+# zvariant = "3.6.0"
+# byteorder = "1"
+
+#[dependencies.bluetooth-hci]
+#features = "version-5-0"
