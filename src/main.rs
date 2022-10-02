@@ -6,22 +6,6 @@ use ruuviscanner::ruuvitag::SensorDataV5;
 use std::error::Error;
 use std::time::Duration;
 
-mod hci0;
-// USE MANAGER's DefaultAdapter method to get the default bluetooth device (read dongle)
-// https://www.landley.net/kdocs/ols/2006/ols2006v1-pages-421-426.pdf
-
-fn _print_refarg(value: &dyn arg::RefArg) {
-    // We don't know what type the value is. We'll try a few and fall back to
-    // debug printing if the value is more complex than that.
-    if let Some(s) = value.as_str() {
-        println!("str: {}", s);
-    } else if let Some(i) = value.as_i64() {
-        println!("int: {}", i);
-    } else {
-        println!("other: {:?}", value);
-    }
-}
-
 fn start_bluetooth(conn: &Connection) -> Result<(), Box<(dyn Error + 'static)>> {
     let set_bluetooth_on_proxy =
         conn.with_proxy("org.bluez", "/org/bluez/hci0", Duration::from_millis(5000));
