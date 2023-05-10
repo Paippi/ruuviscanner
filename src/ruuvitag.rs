@@ -1,4 +1,5 @@
 use dbus::arg;
+use std::convert::TryFrom;
 /// Implementation of ruuvi data format 5
 /// https://github.com/ruuvi/ruuvi-sensor-protocols/blob/master/dataformat_05.md
 
@@ -7,20 +8,21 @@ const TX_POWER_OFFSET: i8 = -40;
 
 /// Joins two u8 primitives together.
 ///
-/// E.g. 0xA1 + 00xxB2 = 0xA1B2
+/// E.g. 0xA1 + 0xB2 = 0xA1B2
 fn join_u8(left: u8, right: u8) -> u16 {
     (left as u16) << 8 | right as u16
 }
 
+// TODO: max numbers such as i32::MAX should be considered as invalid/data not available
 #[derive(Debug)]
 pub struct SensorDataV5 {
     temperature: i16,
     humidity: u16,
     pressure: u16,
-    acceleration: Acceleration,
+    pub acceleration: Acceleration,
     power_info: u16,
-    movement_counter: u8,
-    measurement_number: u16,
+    pub movement_counter: u8,
+    pub measurement_number: u16,
     mac: [u8; 6],
 }
 
@@ -70,9 +72,9 @@ impl SensorDataV5 {
         let humidity = join_u8(temp[3], temp[4]);
         let pressure = join_u8(temp[5], temp[6]);
         let acceleration = Acceleration {
-            _x: join_u8(temp[7], temp[8]) as i16,
-            _y: join_u8(temp[9], temp[10]) as i16,
-            _z: join_u8(temp[11], temp[12]) as i16,
+            x: join_u8(temp[7], temp[8]) as i16,
+            y: join_u8(temp[9], temp[10]) as i16,
+            z: join_u8(temp[11], temp[12]) as i16,
         };
         let power_info = join_u8(temp[13], temp[14]);
         let movement_counter = temp[15];
@@ -90,36 +92,39 @@ impl SensorDataV5 {
             mac,
         ))
     }
-    fn temperature_in_millicelcius(&self) -> i16 {
-        self.temperature * 5
+    pub fn temperature_in_millicelcius(&self) -> i32 {
+        // TODO: optimization wise it might be better to set self.temperature as i32 so we don't
+        // need to cast it everytime. though memory wise it would be better to use i16 but I think
+        // compiler might do this for us.
+        i32::try_from(self.temperature).unwrap() * 5
     }
-    fn temperature_in_celcius(&self) -> f64 {
+    pub fn temperature_in_celcius(&self) -> f64 {
         self.temperature_in_millicelcius() as f64 / 1000_f64
     }
-    fn get_humidity(&self) -> f64 {
+    pub fn get_humidity(&self) -> f64 {
         self.humidity as f64 / 400_f64
     }
-    fn get_pressure(&self) -> u32 {
+    pub fn get_pressure(&self) -> u32 {
         50000 + self.pressure as u32
     }
-    fn get_acceleration_in_mg(&self) -> &Acceleration {
+    pub fn get_acceleration_in_mg(&self) -> &Acceleration {
         &self.acceleration
     }
-    fn get_battery_voltage(&self) -> u16 {
+    pub fn get_battery_voltage(&self) -> u16 {
         let power_info = self.power_info;
         // battery voltage in millivolts
         let mut battery_mv = power_info >> 5;
         battery_mv += BATTERY_OFFSET;
         battery_mv
     }
-    fn get_tx_power(&self) -> i8 {
+    pub fn get_tx_power(&self) -> i8 {
         let power_info = self.power_info;
         // TX power in decibel millivolts
-        let mut tx_power_dbm = (power_info & 0x1f) as i8;
+        let mut tx_power_dbm = (power_info & 0x1f) as i8 * 2;
         tx_power_dbm += TX_POWER_OFFSET;
         tx_power_dbm
     }
-    fn mac_as_str(&self) -> String {
+    pub fn mac_as_str(&self) -> String {
         self.mac
             .iter()
             .map(|x| format!("{:02X}", x))
@@ -149,7 +154,34 @@ impl SensorDataV5 {
 
 #[derive(Debug)]
 pub struct Acceleration {
-    _x: i16,
-    _y: i16,
-    _z: i16,
+    pub x: i16,
+    pub y: i16,
+    pub z: i16,
+}
+
+impl Acceleration {
+    pub fn new(x: i16, y: i16, z: i16) -> Acceleration {
+        Acceleration { x, y, z }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::ruuvitag::{Acceleration, SensorDataV5};
+
+    #[test]
+    fn test_ruuvitag_sensor_data_v5_min() {
+        let sensor_data = SensorDataV5::new(
+            i16::MIN,
+            u16::MIN,
+            u16::MIN,
+            Acceleration::new(i16::MIN, i16::MIN, i16::MIN),
+            u16::MIN,
+            u8::MIN,
+            u16::MIN,
+            [u8::MIN, u8::MIN, u8::MIN, u8::MIN, u8::MIN, u8::MIN],
+        );
+        sensor_data.temperature_in_millicelcius();
+    }
 }
