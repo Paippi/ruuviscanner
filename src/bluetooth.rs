@@ -1,3 +1,31 @@
+//! This module contains functionality related to bluetooth connections.
+//!
+//! # Examples
+//!
+//! ```
+//! use ruuviscanner::bluetooth::connect_bluetooth;
+//! use std::time::Duration;
+//!
+//! let conn = connect_bluetooth()?;
+//!
+//! let proxy = conn.with_proxy(
+//!     "org.bluez",
+//!     // Replace AA_BB_CC_DD_EE_FF with your mac address you are connecting to.
+//!     format!("/org/bluez/hci0/AA_BB_CC_DD_EE_FF"),
+//!     Duration::from_millis(20),
+//! );
+//!
+//! let _id = proxy.match_signal(
+//!     move |h: PropertiesPropertiesChanged, _: &Connection, _: &Message| {
+//!         let tag_data =
+//!             SensorDataV5::from_dbus_changed_properties(h.changed_properties).unwrap();
+//!         // Do something here with tag data.
+//!         true
+//!     },
+//! );
+//!
+//! conn.process(Duration::from_millis(100)).unwrap();
+//! ```
 use dbus::arg;
 use dbus::blocking::Connection;
 use std::error::Error;

@@ -1,3 +1,15 @@
+//! Structure to that decodes ruuvitag V5 format.
+//!
+//! Examples:
+//! ```
+//! // Replace with your mac address.
+//! let mac = "CC:6F:70:EE:4C:AD";
+//! let rx = subscribe_ruuvitag(&mac).await?;
+//! loop {
+//!     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+//!     current_sensor_data.print_sensor_data();
+//! }
+//! ```
 use crate::bluetooth::connect_bluetooth;
 use dbus::arg;
 use dbus::blocking::Connection;
@@ -79,7 +91,7 @@ pub async fn subscribe_ruuvitag(
 ///
 /// TODO: max numbers such as i32::MAX should be considered as invalid/data not available
 /// Implementation following ruuvi data format 5
-/// https://github.com/ruuvi/ruuvi-sensor-protocols/blob/master/dataformat_05.md
+/// <https://github.com/ruuvi/ruuvi-sensor-protocols/blob/master/dataformat_05.md>
 #[derive(Debug)]
 pub struct SensorDataV5 {
     temperature: i16,
