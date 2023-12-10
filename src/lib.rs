@@ -1,6 +1,6 @@
 //! Ruuviscanner
 //!
-//! Retreive ruuvitag data using Rust and D-Bus!
+//! Retrieve ruuvitag data using Rust and D-Bus!
 //!
 //! ## Examples
 //!
