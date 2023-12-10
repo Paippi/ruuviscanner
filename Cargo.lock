@@ -275,7 +275,7 @@ checksum = "b6bd4cf01ca03e36e9049ccb3a4c0616d392b63d31af18f85e7ef7799f1e99a1"
 
 [[package]]
 name = "ruuviscanner"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "dbus",
  "ruuvi-sensor-protocol",

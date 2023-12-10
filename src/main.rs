@@ -12,7 +12,14 @@ async fn main() -> Result<(), Box<(dyn Error + 'static)>> {
     let mac = "CC:6F:70:EE:4C:AD";
     let rx = subscribe_ruuvitag(&mac).await?;
     loop {
-        let msg: SensorDataV5 = rx.recv().unwrap();
-        msg.print_sensor_data();
+        let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+        current_sensor_data.print_sensor_data();
+        println!("{}", current_sensor_data.temperature_in_celcius());
+        println!("{}", current_sensor_data.get_humidity());
+        println!("{}", current_sensor_data.get_pressure());
+        println!("{:?}", current_sensor_data.get_acceleration_in_mg());
+        println!("{}", current_sensor_data.get_battery_voltage());
+        println!("{}", current_sensor_data.get_tx_power());
+        println!("{}", current_sensor_data.mac_as_str());
     }
 }

@@ -8,9 +8,6 @@ use std::error::Error;
 use std::sync::mpsc::{channel, Receiver};
 use std::time::Duration;
 
-/// Implementation of ruuvi data format 5
-/// https://github.com/ruuvi/ruuvi-sensor-protocols/blob/master/dataformat_05.md
-
 const BATTERY_OFFSET: u16 = 1600;
 const TX_POWER_OFFSET: i8 = -40;
 
@@ -21,6 +18,29 @@ fn join_u8(left: u8, right: u8) -> u16 {
     (left as u16) << 8 | right as u16
 }
 
+/// Returns a mpsc channel that sends ruuvitag data.
+///
+/// Subscribe to a ruuvitag by given `mac_address` and returns a mpsc channel that sends `Ruuvitag`
+/// information.
+///
+/// Currently only supports ruuvitag V5 format.
+///
+/// # Panics
+///
+/// The returned mpsc channel will panic if the receiver stops receiving. (Currently a bug that
+/// requires refactoring of code to use async dbus implementation.)
+///
+/// # Examples
+///
+/// ```
+/// // Replace with your mac address.
+/// let mac = "CC:6F:70:EE:4C:AD";
+/// let rx = subscribe_ruuvitag(&mac).await?;
+/// loop {
+///     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+///     current_sensor_data.print_sensor_data();
+/// }
+/// ```
 pub async fn subscribe_ruuvitag(
     mac_address: &str,
 ) -> Result<Receiver<SensorDataV5>, Box<(dyn Error + 'static)>> {
@@ -55,7 +75,11 @@ pub async fn subscribe_ruuvitag(
     Ok(rx)
 }
 
-// TODO: max numbers such as i32::MAX should be considered as invalid/data not available
+/// A structure to hold ruuvitag data from V5 format.
+///
+/// TODO: max numbers such as i32::MAX should be considered as invalid/data not available
+/// Implementation following ruuvi data format 5
+/// https://github.com/ruuvi/ruuvi-sensor-protocols/blob/master/dataformat_05.md
 #[derive(Debug)]
 pub struct SensorDataV5 {
     temperature: i16,
@@ -69,6 +93,7 @@ pub struct SensorDataV5 {
 }
 
 impl SensorDataV5 {
+    /// Constructs a new `SensorDataV5`.
     pub fn new(
         temperature: i16,
         humidity: u16,
@@ -90,6 +115,8 @@ impl SensorDataV5 {
             mac,
         }
     }
+
+    /// Constructs a `SensorDataV5` from dbus message `PropertiesChanged`.
     pub fn from_dbus_changed_properties(changed_properties: arg::PropMap) -> Result<Self, String> {
         let data: Vec<&dyn arg::RefArg> = match changed_properties["ManufacturerData"].0.as_iter() {
             Some(x) => x.collect(),
@@ -135,24 +162,103 @@ impl SensorDataV5 {
             mac,
         ))
     }
+
+    /// Returns the current temperature measured from ruuvitag in millicelsius.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Replace with your mac address.
+    /// let mac = "CC:6F:70:EE:4C:AD";
+    /// let rx = subscribe_ruuvitag(&mac).await?;
+    /// loop {
+    ///     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+    ///     println!("{}", current_sensor_data.temperature_in_millicelcius());
+    /// }
+    /// ```
     pub fn temperature_in_millicelcius(&self) -> i32 {
         // TODO: optimization wise it might be better to set self.temperature as i32 so we don't
         // need to cast it everytime. though memory wise it would be better to use i16 but I think
         // compiler might do this for us.
         i32::try_from(self.temperature).unwrap() * 5
     }
+    /// Returns the current temperature measured from ruuvitag in celsius.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Replace with your mac address.
+    /// let mac = "CC:6F:70:EE:4C:AD";
+    /// let rx = subscribe_ruuvitag(&mac).await?;
+    /// loop {
+    ///     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+    ///     println!("{}", current_sensor_data.temperature_in_celcius());
+    /// }
+    /// ```
     pub fn temperature_in_celcius(&self) -> f64 {
         self.temperature_in_millicelcius() as f64 / 1000_f64
     }
+    /// Returns the current humidity % measured from ruuvitag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Replace with your mac address.
+    /// let mac = "CC:6F:70:EE:4C:AD";
+    /// let rx = subscribe_ruuvitag(&mac).await?;
+    /// loop {
+    ///     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+    ///     println!("{}", current_sensor_data.get_humidity());
+    /// }
+    /// ```
     pub fn get_humidity(&self) -> f64 {
         self.humidity as f64 / 400_f64
     }
+    /// Returns the current air pressure hPa measured from ruuvitag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Replace with your mac address.
+    /// let mac = "CC:6F:70:EE:4C:AD";
+    /// let rx = subscribe_ruuvitag(&mac).await?;
+    /// loop {
+    ///     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+    ///     println!("{}", current_sensor_data.get_pressure());
+    /// }
+    /// ```
     pub fn get_pressure(&self) -> u32 {
         50000 + self.pressure as u32
     }
+    /// Returns the current `Acceleration` mG measured from ruuvitag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Replace with your mac address.
+    /// let mac = "CC:6F:70:EE:4C:AD";
+    /// let rx = subscribe_ruuvitag(&mac).await?;
+    /// loop {
+    ///     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+    ///     println!("{:?}", current_sensor_data.get_acceleration_in_mg());
+    /// }
+    /// ```
     pub fn get_acceleration_in_mg(&self) -> &Acceleration {
         &self.acceleration
     }
+    /// Returns the current battery voltage (mV) measured from ruuvitag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Replace with your mac address.
+    /// let mac = "CC:6F:70:EE:4C:AD";
+    /// let rx = subscribe_ruuvitag(&mac).await?;
+    /// loop {
+    ///     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+    ///     println!("{}", current_sensor_data.get_battery_voltage());
+    /// }
+    /// ```
     pub fn get_battery_voltage(&self) -> u16 {
         let power_info = self.power_info;
         // battery voltage in millivolts
@@ -160,6 +266,20 @@ impl SensorDataV5 {
         battery_mv += BATTERY_OFFSET;
         battery_mv
     }
+
+    /// Returns the current transmit power (dBm) measured from ruuvitag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Replace with your mac address.
+    /// let mac = "CC:6F:70:EE:4C:AD";
+    /// let rx = subscribe_ruuvitag(&mac).await?;
+    /// loop {
+    ///     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+    ///     println!("{}", current_sensor_data.get_tx_power());
+    /// }
+    /// ```
     pub fn get_tx_power(&self) -> i8 {
         let power_info = self.power_info;
         // TX power in decibel millivolts
@@ -167,6 +287,20 @@ impl SensorDataV5 {
         tx_power_dbm += TX_POWER_OFFSET;
         tx_power_dbm
     }
+
+    /// Returns the mac address of the measured ruuvitag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Replace with your mac address.
+    /// let mac = "CC:6F:70:EE:4C:AD";
+    /// let rx = subscribe_ruuvitag(&mac).await?;
+    /// loop {
+    ///     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+    ///     println!("{}", current_sensor_data.mac_as_str());
+    /// }
+    /// ```
     pub fn mac_as_str(&self) -> String {
         self.mac
             .iter()
@@ -174,6 +308,23 @@ impl SensorDataV5 {
             .collect::<Vec<String>>()
             .join(":")
     }
+
+    /// Prints diagnostic information about the measured ruuvitag.
+    ///
+    /// Prints all of the data measured by the ruuvitag in a
+    /// diagnostic format to ease development.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Replace with your mac address.
+    /// let mac = "CC:6F:70:EE:4C:AD";
+    /// let rx = subscribe_ruuvitag(&mac).await?;
+    /// loop {
+    ///     let current_sensor_data: SensorDataV5 = rx.recv().unwrap();
+    ///     current_sensor_data.print_sensor_data();
+    /// }
+    /// ```
     pub fn print_sensor_data(&self) {
         println!("MAC address: {:?}", self.mac_as_str());
         println!(
@@ -195,6 +346,7 @@ impl SensorDataV5 {
     }
 }
 
+/// Structure to hold acceleration information (X, Y, Z)
 #[derive(Debug)]
 pub struct Acceleration {
     pub x: i16,
@@ -203,6 +355,7 @@ pub struct Acceleration {
 }
 
 impl Acceleration {
+    /// Constructs a `Acceleration` structure.
     pub fn new(x: i16, y: i16, z: i16) -> Acceleration {
         Acceleration { x, y, z }
     }
