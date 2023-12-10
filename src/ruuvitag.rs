@@ -2,6 +2,7 @@
 //!
 //! Examples:
 //! ```
+//! use ruuviscanner::ruuvitag::subscribe_ruuvitag;
 //! // Replace with your mac address.
 //! let mac = "CC:6F:70:EE:4C:AD";
 //! let rx = subscribe_ruuvitag(&mac).await?;
