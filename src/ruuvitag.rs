@@ -1,4 +1,4 @@
-//! Module for to assist in ruuvitag data handling.
+//! Module to assist in ruuvitag data handling.
 //!
 //! Examples:
 //! ```
