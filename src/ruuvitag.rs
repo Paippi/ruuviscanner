@@ -1,4 +1,4 @@
-//! Structure to that decodes ruuvitag V5 format.
+//! Module for to assist in ruuvitag data handling.
 //!
 //! Examples:
 //! ```
