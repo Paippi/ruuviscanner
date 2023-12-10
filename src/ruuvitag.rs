@@ -1,5 +1,13 @@
+use crate::bluetooth::connect_bluetooth;
 use dbus::arg;
+use dbus::blocking::Connection;
+use dbus::nonblock::stdintf::org_freedesktop_dbus::PropertiesPropertiesChanged;
+use dbus::Message;
 use std::convert::TryFrom;
+use std::error::Error;
+use std::sync::mpsc::{channel, Receiver};
+use std::time::Duration;
+
 /// Implementation of ruuvi data format 5
 /// https://github.com/ruuvi/ruuvi-sensor-protocols/blob/master/dataformat_05.md
 
@@ -11,6 +19,40 @@ const TX_POWER_OFFSET: i8 = -40;
 /// E.g. 0xA1 + 0xB2 = 0xA1B2
 fn join_u8(left: u8, right: u8) -> u16 {
     (left as u16) << 8 | right as u16
+}
+
+pub async fn subscribe_ruuvitag(
+    mac_address: &str,
+) -> Result<Receiver<SensorDataV5>, Box<(dyn Error + 'static)>> {
+    let (tx, rx) = channel();
+    let conn = connect_bluetooth()?;
+    let mac_dbus_format = mac_address.replace(':', "_");
+    let mac_address = format!("dev_{mac_dbus_format}");
+    let proxy = conn.with_proxy(
+        "org.bluez",
+        format!("/org/bluez/hci0/{mac_address}"),
+        Duration::from_millis(20),
+    );
+    let _id = proxy.match_signal(
+        move |h: PropertiesPropertiesChanged, _: &Connection, _: &Message| {
+            let tag_data =
+                SensorDataV5::from_dbus_changed_properties(h.changed_properties).unwrap();
+            // Cannot currently gracefully shutdown if receiver gets dropped before sender does.
+            // Probably because dbus system bus is implemented as sync.
+            // This will lead to panics, if the receiver gets dropped.
+            // TBD: reimplement in dbus-tokio.
+            // https://docs.rs/dbus-tokio/latest/dbus_tokio/connection/index.html
+            tx.send(tag_data).unwrap();
+
+            true
+        },
+    );
+    tokio::spawn(async move {
+        loop {
+            conn.process(Duration::from_millis(20)).unwrap();
+        }
+    });
+    Ok(rx)
 }
 
 // TODO: max numbers such as i32::MAX should be considered as invalid/data not available
@@ -67,6 +109,7 @@ impl SensorDataV5 {
         if temp.len() != 24 {
             return Err(format!("Missing manufacturer data {temp:?}"));
         }
+        // TODO: Assert the data format that it is V5.
         let _data_format = temp[0];
         let temperature = join_u8(temp[1], temp[2]) as i16;
         let humidity = join_u8(temp[3], temp[4]);

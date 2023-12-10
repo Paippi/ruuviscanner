@@ -1,6 +1,6 @@
 [package]
 name = "ruuviscanner"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Paippi <samuli.piippo@outlook.com>"]
 edition = "2018"
 
@@ -9,6 +9,8 @@ edition = "2018"
 [dependencies]
 dbus = { version = "0.9.5", features = ["futures"] }
 ruuvi-sensor-protocol = "0.5.0"
+# tokio = { version = "1", features = ["sync"]}
+tokio = { version = "1", features = ["full"]}
 # serde = { version = "1.0.142", features = ["derive"] }
 # zvariant = "3.6.0"
 # byteorder = "1"
